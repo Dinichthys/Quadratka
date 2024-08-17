@@ -6,15 +6,44 @@ enum REZ
     NOROOTS, ONEROOT, TWOROOTS, ALL, LINE
 };
 
+int input (double*, double*, double*);
 enum REZ roots (double, double, double, double*, double*);
 void enter (double, double, enum REZ);
 
 int main()
 {
     double a = 0.0, b = 0.0, c = 0.0, x1 = 0.0, x2 = 0.0;
-    scanf ("%lf %lf %lf", &a, &b, &c);
+    if (input (&a, &b, &c) == 0){
+     return 0;
+    }
     enum REZ result = roots (a, b, c, &x1, &x2);
     enter (x1, x2, result);
+}
+
+int input (double *a, double *b, double *c)
+{
+    printf ("Input 3 real numbers separated by the space\n");
+    if (scanf ("%lf %lf %lf", a, b, c) != 3)
+    {
+        printf("Incorrect input. Try again.\n");
+        char ch;
+        while ((ch = getc(stdin)) != '\n')
+        {
+        }
+        if (scanf ("%lf %lf %lf", a, b, c) != 3)
+        {
+            printf("Incorrect input again\n");
+            return 0;
+        }
+        else
+        {
+            return 3;
+        }
+    }
+    else
+    {
+        return 3;
+    }
 }
 
 enum REZ roots (double a, double b, double c, double *x1, double *x2)
