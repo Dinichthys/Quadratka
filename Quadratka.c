@@ -1,63 +1,68 @@
 #include <stdio.h>
 #include <math.h>
 
-int roots (double, double, double, double*, double*);
-void enter (double, double, int);
+enum REZ
+{
+    NOROOTS, ONEROOT, TWOROOTS, ALL, LINE
+};
+
+enum REZ roots (double, double, double, double*, double*);
+void enter (double, double, enum REZ);
 
 int main()
 {
     double a, b, c, x1, x2;
     scanf ("%lf %lf %lf", &a, &b, &c);
-    int result = roots (a, b, c, &x1, &x2);
+    enum REZ result = roots (a, b, c, &x1, &x2);
     enter (x1, x2, result);
 }
 
-int roots (double a, double b, double c, double *x1, double *x2)
+enum REZ roots (double a, double b, double c, double *x1, double *x2)
 {
     if (a == 0){
         if (b == 0){
             if (c == 0){
-                return 3;
+                return ALL;
             }else{
-                return 0;
+                return NOROOTS;
             }
         }else{
             *x1 = -c / b;
-            return 4;
+            return LINE;
         }
     }
     double d = b * b - 4 * a * c;
     if (d < -0.00001){
-        return 0;
+        return NOROOTS;
     }else{
         if (d < 0.00001){
             *x1 = -b / 2;
-            return 1;
+            return ONEROOT;
         }else{
             *x1 = (-b + sqrt(d)) / 2;
             *x2 = (-b - sqrt(d)) / 2;
-            return 2;
+            return TWOROOTS;
         }
     }
 }
 
-void enter (double x1, double x2, int rez)
+void enter (double x1, double x2, enum REZ result)
 {
-    switch (rez)
+    switch (result)
     {
-        case 0:
+        case NOROOTS:
             printf ("There is no roots\n");
             break;
-        case 1:
+        case ONEROOT:
             printf ("Roots are similar and equal %.5lf\n", x1);
             break;
-        case 2:
+        case TWOROOTS:
             printf ("x1 = %.5lf\nx2 = %.5lf\n", x1, x2);
             break;
-        case 3:
+        case ALL:
             printf ("Roots are all real numbers\n");
             break;
-        case 4:
+        case LINE:
             printf ("There is only one root because it is linear equation\nx = %.5lf\n", x1);
             break;
         default:
