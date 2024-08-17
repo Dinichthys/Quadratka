@@ -3,7 +3,11 @@
 
 enum REZ
 {
-    NOROOTS, ONEROOT, TWOROOTS, ALL, LINE
+    NOROOTS = 0,
+    ONEROOT = 1,
+    TWOROOTS = 2,
+    ALL = 3,
+    LINE = 4
 };
 
 int input (double*, double*, double*);
@@ -23,21 +27,38 @@ int main()
 int input (double *a, double *b, double *c)
 {
     printf ("Input 3 real numbers separated by the space\n");
-    if (scanf ("%lf %lf %lf", a, b, c) != 3)
+    int d;
+    if ((d = scanf ("%lf %lf %lf", a, b, c)) != 3)
     {
-        printf("Incorrect input. Try again.\n");
-        char ch;
-        while ((ch = getc(stdin)) != '\n')
+        if (d != EOF)
         {
-        }
-        if (scanf ("%lf %lf %lf", a, b, c) != 3)
-        {
-            printf("Incorrect input again\n");
-            return 0;
+            printf("Incorrect input. Try again.\n");
+            char ch;
+            while (((ch = getc(stdin)) != '\n') && (ch != EOF))
+            {
+            }
+            if (ch == '\n')
+            {
+                if (scanf ("%lf %lf %lf", a, b, c) != 3)
+                {
+                    printf("Incorrect input again\n");
+                    return 0;
+                }
+                else
+                {
+                    return 3;
+                }
+            }
+            else
+            {
+                printf("There is end of input\n");
+                return 0;
+            }
         }
         else
         {
-            return 3;
+            printf("There is end of input\n");
+            return 0;
         }
     }
     else
