@@ -11,7 +11,7 @@ void enter (double, double, enum REZ);
 
 int main()
 {
-    double a, b, c, x1, x2;
+    double a = 0.0, b = 0.0, c = 0.0, x1 = 0.0, x2 = 0.0;
     scanf ("%lf %lf %lf", &a, &b, &c);
     enum REZ result = roots (a, b, c, &x1, &x2);
     enter (x1, x2, result);
@@ -19,26 +19,39 @@ int main()
 
 enum REZ roots (double a, double b, double c, double *x1, double *x2)
 {
-    if (a == 0){
-        if (b == 0){
-            if (c == 0){
+    if (a == 0)
+    {
+        if (b == 0)
+        {
+            if (c == 0)
+            {
                 return ALL;
-            }else{
+            }
+            else
+            {
                 return NOROOTS;
             }
-        }else{
+        }
+        else
+        {
             *x1 = -c / b;
             return LINE;
         }
     }
     double d = b * b - 4 * a * c;
-    if (d < -0.00001){
+    if (d < -0.00001)
+    {
         return NOROOTS;
-    }else{
-        if (d < 0.00001){
+    }
+    else
+    {
+        if (d < 0.00001)
+        {
             *x1 = -b / 2;
             return ONEROOT;
-        }else{
+        }
+        else
+        {
             *x1 = (-b + sqrt(d)) / 2;
             *x2 = (-b - sqrt(d)) / 2;
             return TWOROOTS;
