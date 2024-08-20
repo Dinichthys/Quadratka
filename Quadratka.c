@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <assert.h>
 
 enum REZ
 {
@@ -14,11 +15,12 @@ int input (double*, double*, double*);
 enum REZ roots (double, double, double, double*, double*);
 void enter (double, double, enum REZ);
 
-int main()
+int main ()
 {
     double a = 0.0, b = 0.0, c = 0.0, x1 = 0.0, x2 = 0.0;
-    if (input (&a, &b, &c) == 0){
-     return 0;
+    if (input (&a, &b, &c) == 0)
+    {
+        return 0;
     }
     enum REZ result = roots (a, b, c, &x1, &x2);
     enter (x1, x2, result);
@@ -26,6 +28,13 @@ int main()
 
 int input (double *a, double *b, double *c)
 {
+    assert (a != NULL);
+    assert (b != NULL);
+    assert (c != NULL);
+    assert (a != b);
+    assert (a != c);
+    assert (b != c);
+
     printf ("Input 3 real numbers separated by the space\n");
     int d;
     if ((d = scanf ("%lf %lf %lf", a, b, c)) != 3)
@@ -34,14 +43,14 @@ int input (double *a, double *b, double *c)
         {
             printf("Incorrect input. Try again.\n");
             char ch;
-            while (((ch = getc(stdin)) != '\n') && (ch != EOF))
+            while (((ch = getc (stdin)) != '\n') && (ch != EOF))
             {
             }
             if (ch == '\n')
             {
                 if (scanf ("%lf %lf %lf", a, b, c) != 3)
                 {
-                    printf("Incorrect input again\n");
+                    printf ("Incorrect input again\n");
                     return 0;
                 }
                 else
@@ -51,13 +60,13 @@ int input (double *a, double *b, double *c)
             }
             else
             {
-                printf("There is end of input\n");
+                printf ("There is end of input\n");
                 return 0;
             }
         }
         else
         {
-            printf("There is end of input\n");
+            printf ("There is end of input\n");
             return 0;
         }
     }
@@ -69,11 +78,19 @@ int input (double *a, double *b, double *c)
 
 enum REZ roots (double a, double b, double c, double *x1, double *x2)
 {
-    if (a == 0)
+    assert (isfinite (a));
+    assert (isfinite (b));
+    assert (isfinite (c));
+
+    assert (x1 != NULL);
+    assert (x2 != NULL);
+    assert (x1 != x2);
+
+    if (fabs (a) < 0.00001)
     {
-        if (b == 0)
+        if (fabs (b) < 0.00001)
         {
-            if (c == 0)
+            if (fabs (c) < 0.00001)
             {
                 return ALL;
             }
@@ -111,25 +128,41 @@ enum REZ roots (double a, double b, double c, double *x1, double *x2)
 
 void enter (double x1, double x2, enum REZ result)
 {
+    assert (isfinite (x1));
+    assert (isfinite (x2));
+    assert ((((int) result) < 5) && (((int) result) > -1));
+
     switch (result)
     {
         case NOROOTS:
+        {
             printf ("There is no roots\n");
             break;
+        }
         case ONEROOT:
+        {
             printf ("Roots are similar and equal %.5lf\n", x1);
             break;
+        }
         case TWOROOTS:
-            printf ("x1 = %.5lf\nx2 = %.5lf\n", x1, x2);
+        {
+            printf ("There are 2 roots\nx1 = %.5lf\nx2 = %.5lf\n", x1, x2);
             break;
+        }
         case ALL:
+        {
             printf ("Roots are all real numbers\n");
             break;
+        }
         case LINE:
+        {
             printf ("There is only one root because it is linear equation\nx = %.5lf\n", x1);
             break;
+        }
         default:
+        {
             printf ("Something went wrong\n");
             break;
+        }
     }
 }
