@@ -5,20 +5,27 @@
 #include <ctype.h>
 #include <string.h>
 
-#define MODE 5
+// ./rofl {--tests, -t|--user, -u} [-o stdout] [-i stdin] [--verbose, -v]
+
+const int MODE = 5;
+const int MAX_TRIES = 50;
+const double ACCURACY = 0.00001;
 
 enum SOLVE_SQUARE_RESULT
 {
-    NOROOTS  = 0,
-    ONEROOT  = 1,
-    TWOROOTS = 2,
+    NO_ROOTS  = 0,
+    ONE_ROOT  = 1,
+    TWO_ROOTS = 2,
     ALL      = 3,
     LINE     = 4
 };
 
-bool  is_smaller                            (double number_1, double number_2);
+void  standard                              (FILE* stream_in, FILE* stream_out);
+bool  my_is_finite                          (double x);
+bool  is_equal                              (double first_number, double second_number);
 bool  is_null                               (double number);
-char  white_screen                          (FILE* stream);
+char  clear_input                           (FILE* stream);
+bool  is_end_of_input                       (FILE* stream);
 bool  input_coefficients                    (FILE* stream_in, FILE* stream_out, double* a, double* b, double* c);
 enum  SOLVE_SQUARE_RESULT solve_lineal      (double b, double c, double* x);
 enum  SOLVE_SQUARE_RESULT solve_square      (double a, double b, double c, double* x1, double* x2);
@@ -26,13 +33,9 @@ void  output_roots                          (FILE* stream, enum SOLVE_SQUARE_RES
 void  run_test                              (FILE* stream, int number_of_test, double a, double b, double c, enum SOLVE_SQUARE_RESULT expect_result, double expect_x1, double expect_x2);
 void  run_all_test                          (FILE* stream);
 
+// TODO: command line args
 int main ()
 {
-    double a  = 0.0;
-    double b  = 0.0;
-    double c  = 0.0;
-    double x1 = 0.0;
-    double x2 = 0.0;
     char word [MODE];
     fprintf (stdout, "Choose the mode of testing the program. Write \"Test\" or \"User\".\n");
     fgets (word, MODE, stdin);
@@ -42,12 +45,7 @@ int main ()
     }
     else if (strcmp (word, "User") == 0)
     {
-        if (!(input_coefficients (stdin, stdout, &a, &b, &c)))
-        {
-            return 0;
-        }
-        enum SOLVE_SQUARE_RESULT number_of_roots = solve_square (a, b, c, &x1, &x2);
-        output_roots (stdout, number_of_roots, x1, x2);
+        standard (stdin, stdout);
     }
     else
     {
@@ -55,37 +53,73 @@ int main ()
     }
 }
 
-bool is_smaller (const double number_1, const double number_2)
+void standard (FILE * const stream_in, FILE * const stream_out)
 {
-    assert (isfinite (number_1));
-    assert (isfinite (number_2));
+    assert (stream_in != NULL);
+    assert (stream_out != NULL);
+    assert (stream_in != stream_out);
 
-    return (number_1 < number_2);
+    double a  = 0.0;
+    double b  = 0.0;
+    double c  = 0.0;
+    double x1 = 0.0;
+    double x2 = 0.0;
+
+    if (!(input_coefficients (stream_in, stream_out, &a, &b, &c)))
+    {
+        return;
+    }
+    enum SOLVE_SQUARE_RESULT number_of_roots = solve_square (a, b, c, &x1, &x2);
+    output_roots (stream_out, number_of_roots, x1, x2);
+}
+
+bool my_is_finite (double x)
+{
+    return ((is_equal (x, x)) && (is_equal (x, INFINITY)) && (is_equal (x, -INFINITY)));
+}
+
+// TODO: is_equal
+bool is_equal (const double first_num, const double second_num)
+{
+//  assert (my_is_finite (first_num));
+//  assert (my_is_finite (second_num));
+
+    return ((first_num - second_num) < ACCURACY);
 }
 
 bool is_null (const double number)
 {
-    assert (isfinite (number));
+    assert (my_is_finite (number));
 
-    if (is_smaller (fabs (number), 0.00001))
-    {
-        return true;
-    }
-    return false;
+    return is_equal (number, 0);
 }
 
-char white_screen (FILE* stream)
+bool is_end_of_input (FILE * const stream)
 {
+    assert (stream != NULL);
+
+    char ch = getc (stream);
+    return ((isspace (ch)) || (ch == EOF));
+}
+
+char clear_input (FILE * stream)
+{
+    assert (stream != NULL);
+
     char ch = '\0';
     while (((ch = getc (stream)) != '\n') && (ch != EOF))
     {
+        ;
     }
-    ungetc (ch, stream);
     return (ch);
 }
 
-bool input_coefficients (FILE* stream_in, FILE* stream_out,  double * const a, double * const b, double * const c)
+bool input_coefficients (FILE * stream_in, FILE * stream_out,  \
+                        double * const a, double * const b, double * const c)
 {
+    assert (stream_in != NULL);
+    assert (stream_out != NULL);
+    assert (stream_in != stream_out);
     assert (a != NULL);
     assert (b != NULL);
     assert (c != NULL);
@@ -93,29 +127,14 @@ bool input_coefficients (FILE* stream_in, FILE* stream_out,  double * const a, d
     assert (a != c);
     assert (b != c);
 
-    fprintf (stream_out, "This is the solver of square equation. Input 3 coefficients of it by real numbers separated by the space to discover the roots.\n");
+    fprintf (stream_out, "This is the solver of square equation."
+                         " Input 3 coefficients of it by real numbers separated by the space to discover the roots.\n");
     int d = 0;
     char ch = '\0';
-    if (((d = fscanf (stream_in, "%lf %lf %lf", a, b, c)) == 3) && ((isspace (ch = getc (stream_in))) || (ch == EOF)))
+    int tries = 0;
+    while (MAX_TRIES > tries)
     {
-        return true;
-    }
-    if (d == EOF)
-    {
-        fprintf (stream_out, "There is end of input\n");
-        return false;
-    }
-    int tries = 50;
-    while (tries > 0)
-    {
-        fprintf (stream_out, "Incorrect input. Try again.\n");
-        ch = white_screen (stream_in);
-        if (ch == EOF)
-        {
-            fprintf (stream_out, "There is end of input\n");
-            return false;
-        }
-        if (((d = fscanf (stream_in, "%lf %lf %lf", a, b, c)) == 3) && ((isspace (ch = getc (stream_in))) || (ch == EOF)))
+        if (((d = fscanf (stream_in, "%lf %lf %lf", a, b, c)) == 3) && (is_end_of_input (stream_in))) // TODO: add func
         {
            return true;
         }
@@ -124,7 +143,14 @@ bool input_coefficients (FILE* stream_in, FILE* stream_out,  double * const a, d
             fprintf (stream_out, "There is end of input\n");
             return false;
         }
-        tries--;
+        ch = clear_input (stream_in);
+        if (ch == EOF)
+        {
+            fprintf (stream_out, "There is end of input\n");
+            return false;
+        }
+        fprintf (stream_out, "Incorrect input. Try again.\n");
+        tries++;
     }
     fprintf (stream_out, "Restart the program and try again.\n");
     return false;
@@ -132,21 +158,14 @@ bool input_coefficients (FILE* stream_in, FILE* stream_out,  double * const a, d
 
 enum SOLVE_SQUARE_RESULT solve_lineal (const double b, const double c, double * const x)
 {
-    assert (isfinite (b));
-    assert (isfinite (c));
+    assert (my_is_finite (b));
+    assert (my_is_finite (c));
 
     assert (x != NULL);
 
     if (is_null (b))
     {
-        if (is_null (c))
-        {
-            return ALL;
-        }
-        else
-        {
-            return NOROOTS;
-        }
+        return (is_null (c)) ? ALL : NO_ROOTS;
     }
     else
     {
@@ -155,11 +174,12 @@ enum SOLVE_SQUARE_RESULT solve_lineal (const double b, const double c, double * 
     }
 }
 
-enum SOLVE_SQUARE_RESULT solve_square (const double a, const double b, const double c, double * const x1, double * const x2)
+enum SOLVE_SQUARE_RESULT solve_square   (const double a, const double b, const double c, \
+                                        double * const x1, double * const x2)
 {
-    assert (isfinite (a));
-    assert (isfinite (b));
-    assert (isfinite (c));
+    assert (my_is_finite (a));
+    assert (my_is_finite (b));
+    assert (my_is_finite (c));
 
     assert (x1 != NULL);
     assert (x2 != NULL);
@@ -169,6 +189,7 @@ enum SOLVE_SQUARE_RESULT solve_square (const double a, const double b, const dou
     {
         return solve_lineal (b, c, x1);
     }
+
     double d = b * b - 4 * a * c;
     if (is_null (d))
     {
@@ -177,22 +198,23 @@ enum SOLVE_SQUARE_RESULT solve_square (const double a, const double b, const dou
         {
             *x1 = 0.0;
         }
-        return ONEROOT;
+        return ONE_ROOT;
     }
-    else if (is_smaller (d, 0))
+    else if (d < 0)
     {
-        return NOROOTS;
+        return NO_ROOTS;
     }
     else
     {
         double sqrt_of_d = sqrt (d);
         *x1 = (-b + sqrt_of_d) / (2 * a);
         *x2 = (-b - sqrt_of_d) / (2 * a);
-        if (is_null (*x1))
+        if (is_null (*x1))  // TODO: UBERI KOSTULI
         {
             if (is_null (*x2))
             {
-                return ONEROOT;
+
+                return ONE_ROOT;
             }
             *x1 = 0.0;
         }
@@ -200,28 +222,31 @@ enum SOLVE_SQUARE_RESULT solve_square (const double a, const double b, const dou
         {
             *x2 = 0.0;
         }
-        return TWOROOTS;
+        return TWO_ROOTS;
     }
 }
 
-void output_roots (FILE* stream, const enum SOLVE_SQUARE_RESULT number_of_roots, const double x1, const double x2)
+void output_roots   (FILE * const stream, \
+                    const enum SOLVE_SQUARE_RESULT number_of_roots, \
+                    const double x1, const double x2)
 {
-    assert (isfinite (x1));
-    assert (isfinite (x2));
+    assert (stream != NULL);
+    assert (my_is_finite (x1));
+    assert (my_is_finite (x2));
 
     switch (number_of_roots)
     {
-        case NOROOTS:
+        case NO_ROOTS:
         {
             fprintf (stream, "There is no roots\n");
             break;
         }
-        case ONEROOT:
+        case ONE_ROOT:
         {
             fprintf (stream, "Roots are similar and equal %.5lf\n", x1);
             break;
         }
-        case TWOROOTS:
+        case TWO_ROOTS:
         {
             fprintf (stream, "There are 2 roots\nx1 = %.5lf\nx2 = %.5lf\n", x1, x2);
             break;
@@ -239,26 +264,40 @@ void output_roots (FILE* stream, const enum SOLVE_SQUARE_RESULT number_of_roots,
         default:
         {
             assert(0 && "Invalid SOLVE_SQUARE_RESULT value");
-            fprintf (stream, "Something went wrong\n");
+            fprintf (stream, "Invalid value for \"number_of_roots\" with type SOLVE_SQUARE_RESULT.\n");
             break;
         }
     }
 }
 
-void  run_test (FILE* stream, const int number_of_test, const double a, const double b, const double c, const enum SOLVE_SQUARE_RESULT expect_result, const double expect_x1, const double expect_x2)
+void run_test   (FILE * const stream, \
+                const int number_of_test, \
+                const double a, const double b, const double c, \
+                const enum SOLVE_SQUARE_RESULT expect_result, \
+                const double expect_x1, const double expect_x2)
 {
-    assert (isfinite (a));
-    assert (isfinite (b));
-    assert (isfinite (c));
-    assert (isfinite (expect_x1));
-    assert (isfinite (expect_x2));
+    assert (stream != NULL);
+    assert (my_is_finite (a));
+    assert (my_is_finite (b));
+    assert (my_is_finite (c));
+    assert (my_is_finite (expect_x1));
+    assert (my_is_finite (expect_x2));
 
     double x1 = 0.0;
     double x2 = 0.0;
     enum SOLVE_SQUARE_RESULT result = solve_square (a, b, c, &x1, &x2);
     if ((result != expect_result) || (!(is_null (x1 - expect_x1))) || (!(is_null (x2 - expect_x2))))
     {
-        fprintf (stream, ":  Error in test № %d.     :\n Expected result:\n %d\n Expected roots:\n %.5lf %.5lf\n Real result:\n %d\n Real roots:\n %.5lf %.5lf\n", number_of_test, expect_result, expect_x1, expect_x2, result, x1, x2);
+        fprintf (stream, ":  Error in test № %d.     :\n"
+                         " Expected result:\n"
+                         " %d\n"
+                         " Expected roots:\n"
+                         " %.5lf %.5lf\n"
+                         " Real result:\n"
+                         " %d\n"
+                         " Real roots:\n"
+                         " %.5lf %.5lf\n",
+                         number_of_test, expect_result, expect_x1, expect_x2, result, x1, x2);
     }
     else
     {
@@ -266,15 +305,19 @@ void  run_test (FILE* stream, const int number_of_test, const double a, const do
     }
 }
 
-void run_all_test (FILE* stream)
+// TODO: fix
+void run_all_test (FILE * const stream)
 {
+    assert (stream != NULL);
+
     int number_of_test = 1;
-    run_test (stream, number_of_test++, 0,   0,   0,   ALL,      0,    0  );
-    run_test (stream, number_of_test++, 0,   0,   3.5, NOROOTS,  0,    0  );
-    run_test (stream, number_of_test++, 0,   10,  4,   LINE,     -0.4, 0  );
-    run_test (stream, number_of_test++, 0,   3,   0,   LINE,     0,    0  );
-    run_test (stream, number_of_test++, 2.5, 5,   2.5, ONEROOT,  -1,   0  );
-    run_test (stream, number_of_test++, 1,   -7,  12,  TWOROOTS, 4,    3  );
-    run_test (stream, number_of_test++, 4,   -16, 15,  TWOROOTS, 2.5,  1.5);
+    run_test (stream, number_of_test++, 0,   0,   0,   ALL,       0,    0  );
+    run_test (stream, number_of_test++, 0,   0,   3.5, NO_ROOTS,  0,    0  );
+    run_test (stream, number_of_test++, 0,   10,  4,   LINE,      -0.4, 0  );
+    run_test (stream, number_of_test++, 0,   3,   0,   LINE,      0,    0  );
+    run_test (stream, number_of_test++, 2.5, 5,   2.5, ONE_ROOT,  -1,   0  );
+    run_test (stream, number_of_test++, 1,   -7,  12,  TWO_ROOTS, 4,    3  );
+    run_test (stream, number_of_test++, 4,   -16, 15,  TWO_ROOTS, 2.5,  1.5);
+    run_test (stream, number_of_test++, -2,   5,  0,   TWO_ROOTS, 2.5,  0);
     fprintf  (stream, "All test are done\n");
 }
