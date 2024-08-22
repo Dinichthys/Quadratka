@@ -5,9 +5,19 @@
 #include <ctype.h>
 #include <string.h>
 #include <getopt.h>
+#include <stdlib.h>
 
 const int MAX_TRIES = 50;
 const double ACCURACY = 0.00001;
+
+struct settings_of_command
+{
+    FILE* stream_in;
+    FILE* stream_out;
+    bool test_or_user;
+    bool verbose;
+} set;
+
 
 enum SOLVE_SQUARE_RESULT
 {
@@ -18,8 +28,18 @@ enum SOLVE_SQUARE_RESULT
     LINE      = 4
 };
 
-void settings                               (int arg_count, char **arg_v, FILE* *stream_in, FILE* *stream_out, bool *test_or_user, bool *verbose);
-void  standard                              (FILE* stream_in, FILE* stream_out);
+struct pattern_for_tests
+{
+    double a;
+    double b;
+    double c;
+    enum SOLVE_SQUARE_RESULT expect_result;
+    double expect_x1;
+    double expect_x2;
+};
+
+void  settings                              (int arg_count, char **arg_v);
+void  user_version                          (FILE* stream_in, FILE* stream_out);
 bool  my_is_finite                          (double x);
 bool  is_equal                              (double first_number, double second_number);
 bool  is_null                               (double number);
@@ -29,55 +49,43 @@ bool  input_coefficients                    (FILE* stream_in, FILE* stream_out, 
 enum  SOLVE_SQUARE_RESULT solve_lineal      (double b, double c, double* x);
 enum  SOLVE_SQUARE_RESULT solve_square      (double a, double b, double c, double* x1, double* x2);
 void  output_roots                          (FILE* stream, enum SOLVE_SQUARE_RESULT result, double x1, double x2);
-void  run_test_v                            (FILE* stream, int number_of_test, double a, double b, double c, enum SOLVE_SQUARE_RESULT expect_result, double expect_x1, double expect_x2);
-void  run_test                              (FILE* stream, int number_of_test, double a, double b, double c, enum SOLVE_SQUARE_RESULT expect_result, double expect_x1, double expect_x2);
+void  swap                                  (enum SOLVE_SQUARE_RESULT result, double* x1, double* x2);
+void  run_test_v                            (FILE * const stream, const int number_of_test, struct pattern_for_tests pattern);
+void  run_test                              (FILE * const stream, const int number_of_test, struct pattern_for_tests pattern);
 void  run_all_tests                         (FILE* stream, bool verbose);
 
 // ./rofl {--tests, -t|--user, -u} [-o stdout] [-i stdin] [--verbose, -v]
-// TODO: command line args
-int main (int argc,char **argv)
+int main (int argc, char **argv)
 {
-    const struct option modifications [] =
+    set.stream_in = stdin;
+    set.stream_out = stdout;
+    set.test_or_user = false;
+    set.verbose = false;
+
+    settings (argc, argv);
+
+    if (set.test_or_user)
     {
-        {"tests", 0, 0, 't'},
-        {"user", 0, 0, 'u'},
-        {"verbose", 0, 0, 'v'},
-        {0, 0, 0, 0}
-    };
-
-    FILE* stream_in = stdin;
-    FILE* stream_out = stdout;
-    bool test_or_user = false;
-    bool verbose = false;
-
-    settings (argc, argv, &stream_in, &stream_out, &test_or_user, &verbose);
-
-
-    if (test_or_user)
-    {
-        run_all_tests (stream_out, verbose);
+        run_all_tests (set.stream_out, set.verbose);
     }
     else
     {
-        standard (stream_in, stream_out);
+        user_version (set.stream_in, set.stream_out);
     }
-    fclose (stream_in);
-    fclose (stream_out);
+    fclose (set.stream_in);
+    fclose (set.stream_out);
 }
 
-void settings (int arg_count, char **arg_v, FILE* *stream_in, FILE* *stream_out, bool * const test_or_user, bool * const verbose)
+void settings (int argc, char **argv)
 {
-    assert (arg_v != NULL);
-    assert (stream_in != NULL);
-    assert (stream_out != NULL);
-    assert (test_or_user != NULL);
-    assert (verbose != NULL);
+    assert (argv != NULL);
 
     const struct option modifications [] =
     {
         {"tests",   0, 0, 't'},
         {"user",    0, 0, 'u'},
         {"verbose", 0, 0, 'v'},
+        {"help",    0, 0, 'h'},
         {0,         0, 0,  0 }
     };
 
@@ -86,12 +94,12 @@ void settings (int arg_count, char **arg_v, FILE* *stream_in, FILE* *stream_out,
 
     while (mode != -1)
     {
-        mode = getopt_long (arg_count, arg_v, "tuo:i:v", modifications, &long_index);
+        mode = getopt_long (argc, argv, "tuo:i:vh", modifications, &long_index);
         switch (mode)
         {
             case 't':
             {
-                *test_or_user = true;
+                set.test_or_user = true;
                 break;
             }
             case 'u':
@@ -100,26 +108,46 @@ void settings (int arg_count, char **arg_v, FILE* *stream_in, FILE* *stream_out,
             }
             case 'o':
             {
-                *stream_out = fopen (optarg, "w");
+                set.stream_out = fopen (optarg, "w");
                 break;
             }
             case 'i':
             {
-                *stream_in = fopen (optarg, "r");
+                set.stream_in = fopen (optarg, "r");
                 break;
             }
             case 'v':
             {
-                *verbose = true;
+                set.verbose = true;
+                break;
+            }
+            case 'h':
+            {
+                printf (" There is list of parameters of that program.\n"
+                        " \"--test\" or \"-t\"    :"
+                        " the program is starting testing by the tests.\n"
+                        " \"--user\" or \"-u\"    :"
+                        " the program is starting working with user.\n"
+                        " \"-i\"                :"
+                        " you can change the stream of input and write the name of place of input after it.\n"
+                        " \"-o\"                :"
+                        " you can change the stream of output and write the name of place of output after it.\n"
+                        " \"--verbose\" or \"-v\" :"
+                        " makes the analytic investigation verbose.\n"); //fixed
+                exit(0);
+            }
+            case -1:
+            {
                 break;
             }
             default:
+                assert (0 && "Invalid name of command in terminal.\n");
                 break;
         }
     }
 }
 
-void standard (FILE * const stream_in, FILE * const stream_out)
+void user_version (FILE * const stream_in, FILE * const stream_out)
 {
     assert (stream_in != NULL);
     assert (stream_out != NULL);
@@ -138,13 +166,12 @@ void standard (FILE * const stream_in, FILE * const stream_out)
     enum SOLVE_SQUARE_RESULT number_of_roots = solve_square (a, b, c, &x1, &x2);
     output_roots (stream_out, number_of_roots, x1, x2);
 }
-
+//fixed
 bool my_is_finite (double x)
 {
-    return ((x == x) && (x != INFINITY) && (x != -INFINITY));
+    return ((x == x) && (x * 0 == x * 0));
 }
 
-// TODO: is_equal
 bool is_equal (const double first_num, const double second_num)
 {
     assert (my_is_finite (first_num));
@@ -163,9 +190,13 @@ bool is_null (const double number)
 bool is_end_of_input (FILE * const stream)
 {
     assert (stream != NULL);
-
-    char ch = getc (stream);
-    return ((isspace (ch)) || (ch == EOF));
+//fixed
+    char ch = '\0';
+    while ((isspace (ch = getc (stream))) && (ch != '\n'))
+    {
+        ;
+    }
+    return ((ch == '\n') || (ch == EOF));
 }
 
 char clear_input (FILE * stream)
@@ -194,13 +225,14 @@ bool input_coefficients (FILE * stream_in, FILE * stream_out,  \
     assert (b != c);
 
     fprintf (stream_out, "This is the solver of square equation."
-                         " Input 3 coefficients of it by real numbers separated by the space to discover the roots.\n");
+                         " Input 3 coefficients of it by real numbers"
+                         " separated by the space to discover the roots.\n");
     int d = 0;
     char ch = '\0';
     int tries = 0;
-    while (MAX_TRIES > tries)
+    while (tries < MAX_TRIES)
     {
-        if (((d = fscanf (stream_in, "%lf %lf %lf", a, b, c)) == 3) && (is_end_of_input (stream_in))) // TODO: add func
+        if (((d = fscanf (stream_in, "%lf %lf %lf", a, b, c)) == 3) && (is_end_of_input (stream_in)))
         {
            return true;
         }
@@ -233,11 +265,9 @@ enum SOLVE_SQUARE_RESULT solve_lineal (const double b, const double c, double * 
     {
         return (is_null (c)) ? ALL : NO_ROOTS;
     }
-    else
-    {
-        *x = -c / b;
-        return LINE;
-    }
+
+    *x = -c / b;
+    return LINE;
 }
 
 enum SOLVE_SQUARE_RESULT solve_square   (const double a, const double b, const double c, \
@@ -276,7 +306,7 @@ enum SOLVE_SQUARE_RESULT solve_square   (const double a, const double b, const d
         double x = 0.0;
         *x1 = (is_null (x = (-b + sqrt_of_d) / (2 * a))) ? 0.0 : x;
         *x2 = (is_null (x = (-b - sqrt_of_d) / (2 * a))) ? 0.0 : x;
-        return (is_equal (*x1, *x2)) ? ONE_ROOT : TWO_ROOTS;  //TODO
+        return (is_equal (*x1, *x2)) ? ONE_ROOT : TWO_ROOTS;
     }
 }
 
@@ -324,32 +354,40 @@ void output_roots   (FILE * const stream, \
     }
 }
 
-void run_test_v (FILE * const stream, \
-                const int number_of_test, \
-                const double a, const double b, const double c, \
-                const enum SOLVE_SQUARE_RESULT expect_result, \
-                const double expect_x1, const double expect_x2)
+void swap (const enum SOLVE_SQUARE_RESULT result, double * const x1, double * const x2)
+{
+    assert (x1 != NULL);
+    assert (x2 != NULL);
+    assert (x1 != x2);
+
+    if ((result == TWO_ROOTS) && ((*x1 - *x2) < ACCURACY))
+    {
+        double change = *x1;
+        *x1 = *x2;
+        *x2 = change;
+    }
+    return;
+}
+
+void run_test_v (FILE * const stream, const int number_of_test, struct pattern_for_tests pattern) //fixed
 {
     assert (stream != NULL);
-    assert (my_is_finite (a));
-    assert (my_is_finite (b));
-    assert (my_is_finite (c));
-    assert (my_is_finite (expect_x1));
-    assert (my_is_finite (expect_x2));
+    assert (my_is_finite (pattern.a));
+    assert (my_is_finite (pattern.b));
+    assert (my_is_finite (pattern.c));
+    assert (my_is_finite (pattern.expect_x1));
+    assert (my_is_finite (pattern.expect_x2));
 
     double x1 = 0.0;
     double x2 = 0.0;
 
-    enum SOLVE_SQUARE_RESULT result = solve_square (a, b, c, &x1, &x2);
+    enum SOLVE_SQUARE_RESULT result = solve_square (pattern.a, pattern.b, pattern.c, &x1, &x2);
 
-    if ((result == TWO_ROOTS) && ((x1 - x2) < ACCURACY))
-    {
-        double change = x1;
-        x1 = x2;
-        x2 = change;
-    }
+    swap (result, &x1, &x2);
 
-    if (result != expect_result)
+    if ((result != pattern.expect_result) ||
+       (!(is_null (x1 - pattern.expect_x1))) ||
+       (!(is_null (x2 - pattern.expect_x2))))
     {
         fprintf (stream, ":  Error in test № %d.     :\n"
                          " The coefficients:\n"
@@ -360,31 +398,11 @@ void run_test_v (FILE * const stream, \
                          " c :\n"
                          " %.5lf\n"
                          " Expected result:\n"
-                         " %d\n"
-                         " Real result:\n"
-                         " %d\n"
-                         "____________________________\n"
-                         ,number_of_test, a, b, c, expect_result, result);
-        return;
-    }
-    if ((!(is_null (x1 - expect_x1))) || (!(is_null (x2 - expect_x2))))
-    {
-    fprintf (stream, ":  Error in test № %d      :\n"
-                     " The coefficients:\n"
-                     " a :\n"
-                     " %.5lf\n"
-                     " b :\n"
-                     " %.5lf\n"
-                     " c :\n"
-                     " %.5lf\n"
-                     " The result:\n"
-                     " %d\n"
-                     " The expected roots:\n"
-                     " %.5lf %.5lf\n"
-                     " The real roots:\n"
-                     " %.5lf %.5lf\n"
-                     "____________________________\n"
-                     , number_of_test, a, b, c, expect_result, expect_x1, expect_x2, x1, x2);
+                         ,number_of_test, pattern.a, pattern.b, pattern.c);
+        output_roots (stream, pattern.expect_result, pattern.expect_x1, pattern.expect_x2);
+        fprintf (stream, " Real result:\n");
+        output_roots (stream, result, x1, x2);
+        fprintf (stream, "____________________________\n");
         return;
     }
     fprintf (stream, ":  Test № %d is succeeded  :\n"
@@ -396,93 +414,61 @@ void run_test_v (FILE * const stream, \
                      " c :\n"
                      " %.5lf\n"
                      " The result:\n"
-                     " %d\n"
-                     " The roots:\n"
-                     " %.5lf %.5lf\n"
-                     "____________________________\n"
-                     , number_of_test, a, b, c, expect_result, expect_x1, expect_x2);
+                     ,number_of_test, pattern.a, pattern.b, pattern.c);
+    output_roots (stream, pattern.expect_result, pattern.expect_x1, pattern.expect_x2);
+    fprintf (stream, "____________________________\n");
 }
 
-void run_test   (FILE * const stream, \
-                const int number_of_test, \
-                const double a, const double b, const double c, \
-                const enum SOLVE_SQUARE_RESULT expect_result, \
-                double expect_x1, double expect_x2)
+void run_test (FILE * const stream, const int number_of_test, struct pattern_for_tests pattern)
 {
     assert (stream != NULL);
-    assert (my_is_finite (a));
-    assert (my_is_finite (b));
-    assert (my_is_finite (c));
-    assert (my_is_finite (expect_x1));
-    assert (my_is_finite (expect_x2));
+    assert (my_is_finite (pattern.a));
+    assert (my_is_finite (pattern.b));
+    assert (my_is_finite (pattern.c));
+    assert (my_is_finite (pattern.expect_x1));
+    assert (my_is_finite (pattern.expect_x2));
 
     double x1 = 0.0;
     double x2 = 0.0;
 
-    enum SOLVE_SQUARE_RESULT result = solve_square (a, b, c, &x1, &x2);
+    enum SOLVE_SQUARE_RESULT result = solve_square (pattern.a, pattern.b, pattern.c, &x1, &x2);
 
-    if ((result == TWO_ROOTS) && ((x1 - x2) < ACCURACY))
-    {
-        double change = x1;
-        x1 = x2;
-        x2 = change;
-    }
+    swap (result, &x1, &x2);
 
-    if (result != expect_result)
+    if ((result != pattern.expect_result) ||
+       (!(is_null (x1 - pattern.expect_x1))) ||
+       (!(is_null (x2 - pattern.expect_x2))))
     {
         fprintf (stream, ":  Error in test № %d.     :\n"
                          " Expected result:\n"
-                         " %d\n"
-                         " Real result:\n"
-                         " %d\n"
-                         "____________________________\n",
-                         number_of_test, expect_result, result);
+                         ,number_of_test);
+        output_roots (stream, pattern.expect_result, pattern.expect_x1, pattern.expect_x2);
+        fprintf (stream, " Real result:\n");
+        output_roots (stream, result, x1, x2);
         return;
     }
-
-    if ((!(is_null (x1 - expect_x1))) || (!(is_null (x2 - expect_x2))))
-    {
-        fprintf (stream, ":  Error in test № %d.     :\n"
-                         " Expected roots:\n"
-                         " %.5lf %.5lf\n"
-                         " Real roots:\n"
-                         " %.5lf %.5lf\n"
-                         "____________________________\n",
-                         number_of_test, expect_x1, expect_x2, x1, x2);
-        return;
-    }
-
     fprintf (stream, ":  Test № %d is succeeded  :\n", number_of_test);
 }
-
+//fixed
 void run_all_tests (FILE * const stream, const bool verbose)
 {
     assert (stream != NULL);
 
     int number_of_test = 1;
 
-    if (verbose)
-    {
-        run_test_v (stream, number_of_test++, 0,   0,   0,   ALL,       0,    0  );
-        run_test_v (stream, number_of_test++, 0,   0,   3.5, NO_ROOTS,  0,    0  );
-        run_test_v (stream, number_of_test++, 0,   10,  4,   LINE,      -0.4, 0  );
-        run_test_v (stream, number_of_test++, 0,   3,   0,   LINE,      0,    0  );
-        run_test_v (stream, number_of_test++, 2.5, 5,   2.5, ONE_ROOT,  -1,   0  );
-        run_test_v (stream, number_of_test++, 1,   -7,  12,  TWO_ROOTS, 4,    3  );
-        run_test_v (stream, number_of_test++, 4,   -16, 15,  TWO_ROOTS, 2.5,  1.5);
-        run_test_v (stream, number_of_test++, -2,   5,  0,   TWO_ROOTS, 2.5,  0  );
-    }
-    else
-    {
-        run_test (stream, number_of_test++, 0,   0,   0,   ALL,       0,    0  );
-        run_test (stream, number_of_test++, 0,   0,   3.5, NO_ROOTS,  0,    0  );
-        run_test (stream, number_of_test++, 0,   10,  4,   LINE,      -0.4, 0  );
-        run_test (stream, number_of_test++, 0,   3,   0,   LINE,      0,    0  );
-        run_test (stream, number_of_test++, 2.5, 5,   2.5, ONE_ROOT,  -1,   0  );
-        run_test (stream, number_of_test++, 1,   -7,  12,  TWO_ROOTS, 4,    3  );
-        run_test (stream, number_of_test++, 4,   -16, 15,  TWO_ROOTS, 2.5,  1.5);
-        run_test (stream, number_of_test++, -2,   5,  0,   TWO_ROOTS, 2.5,  0  );
+    void (*print) (FILE*, int, struct pattern_for_tests) = run_test;
+
+    if (verbose){
+        print = run_test_v;
     }
 
-    fprintf  (stream, "All tests are done\n");
+    print (stream, number_of_test++, (struct pattern_for_tests) { 0,   0,   0,   ALL,       0,    0  });
+    print (stream, number_of_test++, (struct pattern_for_tests) { 0,   0,   3.5, NO_ROOTS,  0,    0  });
+    print (stream, number_of_test++, (struct pattern_for_tests) { 0,   10,  4,   LINE,      -0.4, 0  });
+    print (stream, number_of_test++, (struct pattern_for_tests) { 0,   3,   0,   LINE,      0,    0  });
+    print (stream, number_of_test++, (struct pattern_for_tests) { 2.5, 5,   2.5, ONE_ROOT,  -1,   0  });
+    print (stream, number_of_test++, (struct pattern_for_tests) { 1,   -7,  12,  TWO_ROOTS, 4,    3  });
+    print (stream, number_of_test++, (struct pattern_for_tests) { 4,   -16, 15,  TWO_ROOTS, 2.5,  1.5});
+    print (stream, number_of_test++, (struct pattern_for_tests) { -2,   5,  0,   TWO_ROOTS, 2.5,  0  });
+    fprintf (stream, "All tests are done\n");
 }
