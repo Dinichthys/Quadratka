@@ -1,3 +1,4 @@
+//TODO brench predictor and linkovka i peredelai v cpp
 #include <stdio.h>
 #include <math.h>
 #include <assert.h>
@@ -10,13 +11,15 @@
 const int MAX_TRIES = 50;
 const double ACCURACY = 0.00001;
 
+//TODO remove global var fixed
 struct settings_of_command
 {
     FILE* stream_in;
     FILE* stream_out;
     bool test_or_user;
     bool verbose;
-} set;
+    bool stop_program;
+};
 
 
 enum SOLVE_SQUARE_RESULT
@@ -33,37 +36,40 @@ struct pattern_for_tests
     double a;
     double b;
     double c;
+
     enum SOLVE_SQUARE_RESULT expect_result;
     double expect_x1;
     double expect_x2;
 };
 
-void  settings                              (int arg_count, char **arg_v);
+void  settings_from_argv                    (int argc, char * const * argv, struct settings_of_command *set);
 void  user_version                          (FILE* stream_in, FILE* stream_out);
 bool  my_is_finite                          (double x);
 bool  is_equal                              (double first_number, double second_number);
 bool  is_null                               (double number);
-char  clear_input                           (FILE* stream);
+int   clear_input                           (FILE* stream);
 bool  is_end_of_input                       (FILE* stream);
 bool  input_coefficients                    (FILE* stream_in, FILE* stream_out, double* a, double* b, double* c);
 enum  SOLVE_SQUARE_RESULT solve_lineal      (double b, double c, double* x);
 enum  SOLVE_SQUARE_RESULT solve_square      (double a, double b, double c, double* x1, double* x2);
 void  output_roots                          (FILE* stream, enum SOLVE_SQUARE_RESULT result, double x1, double x2);
 void  swap                                  (enum SOLVE_SQUARE_RESULT result, double* x1, double* x2);
-void  run_test_v                            (FILE * const stream, const int number_of_test, struct pattern_for_tests pattern);
-void  run_test                              (FILE * const stream, const int number_of_test, struct pattern_for_tests pattern);
+void  run_test_v                            (FILE * stream, int number_of_test, struct pattern_for_tests pattern);
+void  run_test                              (FILE * stream, int number_of_test, struct pattern_for_tests pattern);
 void  run_all_tests                         (FILE* stream, bool verbose);
 
 // ./rofl {--tests, -t|--user, -u} [-o stdout] [-i stdin] [--verbose, -v]
-int main (int argc, char **argv)
+int main (const int argc, char * const argv[])
 {
-    set.stream_in = stdin;
-    set.stream_out = stdout;
-    set.test_or_user = false;
-    set.verbose = false;
+    struct settings_of_command set = { stdin, stdout, false, false, false };
 
-    settings (argc, argv);
-
+    settings_from_argv (argc, argv, &set);
+    if (set.stop_program)
+    {
+        fclose (set.stream_in);
+        fclose (set.stream_out);
+        return 0;
+    }
     if (set.test_or_user)
     {
         run_all_tests (set.stream_out, set.verbose);
@@ -76,7 +82,8 @@ int main (int argc, char **argv)
     fclose (set.stream_out);
 }
 
-void settings (int argc, char **argv)
+//TODO rename and const fixed
+void settings_from_argv (const int argc, char * const argv[], struct settings_of_command * const set) //TODO add + fixed
 {
     assert (argv != NULL);
 
@@ -91,15 +98,18 @@ void settings (int argc, char **argv)
 
     int mode = 0;
     int long_index = 0;
+    int count_iterate = 0;
 
     while (mode != -1)
     {
-        mode = getopt_long (argc, argv, "tuo:i:vh", modifications, &long_index);
+        count_iterate++;
+        //TODO see '+' and opterr fixed
+        mode = getopt_long (argc, argv, "+tuo:i:vh", modifications, &long_index);
         switch (mode)
         {
             case 't':
             {
-                set.test_or_user = true;
+                set->test_or_user = true;
                 break;
             }
             case 'u':
@@ -108,17 +118,22 @@ void settings (int argc, char **argv)
             }
             case 'o':
             {
-                set.stream_out = fopen (optarg, "w");
+                set->stream_out = fopen (optarg, "w");
                 break;
             }
             case 'i':
             {
-                set.stream_in = fopen (optarg, "r");
+                set->stream_in = fopen (optarg, "r");
+                if (!(set->stream_in))
+                {
+                    set->stop_program = true;
+                    printf ("There is no files with name %s\n", optarg);
+                }
                 break;
             }
             case 'v':
             {
-                set.verbose = true;
+                set->verbose = true;
                 break;
             }
             case 'h':
@@ -134,15 +149,28 @@ void settings (int argc, char **argv)
                         " you can change the stream of output and write the name of place of output after it.\n"
                         " \"--verbose\" or \"-v\" :"
                         " makes the analytic investigation verbose.\n"); //fixed
-                exit(0);
+                mode = -1;
+                set->stop_program = true; //TODO lose exit fixed
             }
             case -1:
             {
+                if (argc != count_iterate)
+                {
+                    printf ("There are odd symbols in the terminal.\n");
+                    mode = -1;
+                    set->stop_program = true;
+                    assert (0 && "There are odd symbols in the terminal.\n");
+                }
                 break;
             }
             default:
-                assert (0 && "Invalid name of command in terminal.\n");
+            {
+                printf("Invalid name of command in the terminal.\n");
+                mode = -1;
+                set->stop_program = true;
+                assert (0 && "Invalid name of command in the terminal.\n");
                 break;
+            }
         }
     }
 }
@@ -166,12 +194,13 @@ void user_version (FILE * const stream_in, FILE * const stream_out)
     enum SOLVE_SQUARE_RESULT number_of_roots = solve_square (a, b, c, &x1, &x2);
     output_roots (stream_out, number_of_roots, x1, x2);
 }
-//fixed
+
 bool my_is_finite (double x)
 {
     return ((x == x) && (x * 0 == x * 0));
 }
 
+//rename
 bool is_equal (const double first_num, const double second_num)
 {
     assert (my_is_finite (first_num));
@@ -190,25 +219,25 @@ bool is_null (const double number)
 bool is_end_of_input (FILE * const stream)
 {
     assert (stream != NULL);
-//fixed
-    char ch = '\0';
-    while ((isspace (ch = getc (stream))) && (ch != '\n'))
+
+    int ch = 0;
+    while ((((ch = getc (stream)) != '\n')) && (ch != EOF) && (isspace ((unsigned char)ch)))
     {
         ;
     }
     return ((ch == '\n') || (ch == EOF));
 }
 
-char clear_input (FILE * stream)
+int clear_input (FILE * stream)
 {
     assert (stream != NULL);
 
-    char ch = '\0';
+    int ch = '\0';
     while (((ch = getc (stream)) != '\n') && (ch != EOF))
     {
         ;
     }
-    return (ch);
+    return ch;
 }
 
 bool input_coefficients (FILE * stream_in, FILE * stream_out,  \
@@ -290,24 +319,25 @@ enum SOLVE_SQUARE_RESULT solve_square   (const double a, const double b, const d
     if (is_null (d))
     {
         *x1 = -b / (2 * a);
-        if (is_null (*x1))
-        {
-            *x1 = 0.0;
-        }
+        *x1 = is_null(*x1) ? 0.0 : *x1;
+
         return ONE_ROOT;
     }
-    else if (d < 0)
+
+    if (d < 0)
     {
         return NO_ROOTS;
     }
-    else
-    {
-        double sqrt_of_d = sqrt (d);
-        double x = 0.0;
-        *x1 = (is_null (x = (-b + sqrt_of_d) / (2 * a))) ? 0.0 : x;
-        *x2 = (is_null (x = (-b - sqrt_of_d) / (2 * a))) ? 0.0 : x;
-        return (is_equal (*x1, *x2)) ? ONE_ROOT : TWO_ROOTS;
-    }
+
+    double sqrt_of_d = sqrt (d);
+
+    *x1 = (-b + sqrt_of_d) / (2 * a);
+    *x2 = (-b - sqrt_of_d) / (2 * a);
+
+    *x1 = is_null(*x1) ? 0.0 : *x1;
+    *x2 = is_null(*x2) ? 0.0 : *x2;
+
+    return (is_equal (*x1, *x2)) ? ONE_ROOT : TWO_ROOTS;
 }
 
 void output_roots   (FILE * const stream, \
@@ -347,8 +377,8 @@ void output_roots   (FILE * const stream, \
         }
         default:
         {
-            assert(0 && "Invalid SOLVE_SQUARE_RESULT value");
             fprintf (stream, "Invalid value for \"number_of_roots\" with type SOLVE_SQUARE_RESULT.\n");
+            assert(0 && "Invalid SOLVE_SQUARE_RESULT value"); //TODO fixed
             break;
         }
     }
@@ -366,7 +396,6 @@ void swap (const enum SOLVE_SQUARE_RESULT result, double * const x1, double * co
         *x1 = *x2;
         *x2 = change;
     }
-    return;
 }
 
 void run_test_v (FILE * const stream, const int number_of_test, struct pattern_for_tests pattern) //fixed
@@ -456,7 +485,7 @@ void run_all_tests (FILE * const stream, const bool verbose)
 
     int number_of_test = 1;
 
-    void (*print) (FILE*, int, struct pattern_for_tests) = run_test;
+    void (*print) (FILE*, int, struct pattern_for_tests) = run_test; //TODO rename and add func print with pointer in arg
 
     if (verbose){
         print = run_test_v;
