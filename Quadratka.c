@@ -250,21 +250,10 @@ enum SOLVE_SQUARE_RESULT solve_square   (const double a, const double b, const d
     else
     {
         double sqrt_of_d = sqrt (d);
-        *x1 = (-b + sqrt_of_d) / (2 * a);
-        *x2 = (-b - sqrt_of_d) / (2 * a);
-        if (is_null (*x1))  // TODO: UBERI KOSTULI
-        {
-            *x1 = 0.0;
-            if (is_null (*x2))
-            {
-                return ONE_ROOT;
-            }
-        }
-        else if (is_null (*x2))
-        {
-            *x2 = 0.0;
-        }
-        return TWO_ROOTS;
+        double x = 0.0;
+        *x1 = (is_null (x = (-b + sqrt_of_d) / (2 * a))) ? 0.0 : x;
+        *x2 = (is_null (x = (-b - sqrt_of_d) / (2 * a))) ? 0.0 : x;
+        return (is_equal (*x1, *x2)) ? ONE_ROOT : TWO_ROOTS;
     }
 }
 
