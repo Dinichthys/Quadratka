@@ -18,6 +18,7 @@ enum SOLVE_SQUARE_RESULT
     LINE      = 4
 };
 
+void settings                               (int arg_count, char **arg_v, FILE* *stream_in, FILE* *stream_out, bool *test_or_user, bool *verbose);
 void  standard                              (FILE* stream_in, FILE* stream_out);
 bool  my_is_finite                          (double x);
 bool  is_equal                              (double first_number, double second_number);
@@ -44,46 +45,14 @@ int main (int argc,char **argv)
         {0, 0, 0, 0}
     };
 
-    int mode = 0;
-    int long_index = 0;
     FILE* stream_in = stdin;
     FILE* stream_out = stdout;
     bool test_or_user = false;
     bool verbose = false;
 
-    while (mode != -1)
-    {
-        mode = getopt_long (argc, argv, "tuo:i:v", modifications, &long_index);
-        switch (mode)
-        {
-            case 't':
-            {
-                test_or_user = true;
-                break;
-            }
-            case 'u':
-            {
-                break;
-            }
-            case 'o':
-            {
-                stream_out = fopen (optarg, "w");
-                break;
-            }
-            case 'i':
-            {
-                stream_in = fopen (optarg, "r");
-                break;
-            }
-            case 'v':
-            {
-                verbose = true;
-                break;
-            }
-            default:
-            break;
-        }
-    }
+    settings (argc, argv, &stream_in, &stream_out, &test_or_user, &verbose);
+
+
     if (test_or_user)
     {
         run_all_tests (stream_out, verbose);
@@ -94,6 +63,60 @@ int main (int argc,char **argv)
     }
     fclose (stream_in);
     fclose (stream_out);
+}
+
+void settings (int arg_count, char **arg_v, FILE* *stream_in, FILE* *stream_out, bool * const test_or_user, bool * const verbose)
+{
+    assert (arg_v != NULL);
+    assert (stream_in != NULL);
+    assert (stream_out != NULL);
+    assert (test_or_user != NULL);
+    assert (verbose != NULL);
+
+    const struct option modifications [] =
+    {
+        {"tests",   0, 0, 't'},
+        {"user",    0, 0, 'u'},
+        {"verbose", 0, 0, 'v'},
+        {0,         0, 0,  0 }
+    };
+
+    int mode = 0;
+    int long_index = 0;
+
+    while (mode != -1)
+    {
+        mode = getopt_long (arg_count, arg_v, "tuo:i:v", modifications, &long_index);
+        switch (mode)
+        {
+            case 't':
+            {
+                *test_or_user = true;
+                break;
+            }
+            case 'u':
+            {
+                break;
+            }
+            case 'o':
+            {
+                *stream_out = fopen (optarg, "w");
+                break;
+            }
+            case 'i':
+            {
+                *stream_in = fopen (optarg, "r");
+                break;
+            }
+            case 'v':
+            {
+                *verbose = true;
+                break;
+            }
+            default:
+                break;
+        }
+    }
 }
 
 void standard (FILE * const stream_in, FILE * const stream_out)
@@ -253,7 +276,7 @@ enum SOLVE_SQUARE_RESULT solve_square   (const double a, const double b, const d
         double x = 0.0;
         *x1 = (is_null (x = (-b + sqrt_of_d) / (2 * a))) ? 0.0 : x;
         *x2 = (is_null (x = (-b - sqrt_of_d) / (2 * a))) ? 0.0 : x;
-        return (is_equal (*x1, *x2)) ? ONE_ROOT : TWO_ROOTS;
+        return (is_equal (*x1, *x2)) ? ONE_ROOT : TWO_ROOTS;  //TODO
     }
 }
 
